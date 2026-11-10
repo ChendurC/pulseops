@@ -1,0 +1,6 @@
+# Runtime
+psycopg[binary]==3.3.8
+
+# Development
+pytest==9.2.0
+ruff==0.17.4

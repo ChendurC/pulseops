@@ -7,35 +7,56 @@
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
 <body>
-<header class="topbar">
-    <div class="brand"><span class="brand-mark" aria-hidden="true">◆</span> PulseOps</div>
-    <nav class="nav" aria-label="Main">
-        <a th:href="@{/}" class="active" aria-current="page">Overview</a>
-    </nav>
-    <div class="session">
-        <span class="session-user" th:text="${user.username}">user</span>
-        <span class="badge" th:text="${user.role}">ROLE</span>
-        <form th:action="@{/logout}" method="post">
-            <button type="submit" class="btn btn-ghost">Sign out</button>
-        </form>
-    </div>
-</header>
+<header th:replace="~{fragments/topbar :: topbar('overview')}"></header>
 
 <main class="container">
-    <h1>Overview</h1>
-    <p class="muted" th:text="${user.tenantName}">Tenant</p>
+    <div class="page-head">
+        <div>
+            <h1>Overview</h1>
+            <p class="muted" th:text="${user.tenantName}">Tenant</p>
+        </div>
+        <a th:href="@{/upload}" class="btn btn-primary btn-inline">Upload dataset</a>
+    </div>
 
     <section class="grid">
         <article class="card stat">
             <h2>Processing jobs</h2>
             <p class="stat-value" th:text="${jobCount}">0</p>
-            <p class="muted">Jobs submitted by your organisation</p>
+            <p class="muted">Submitted by your organisation</p>
         </article>
         <article class="card stat">
-            <h2>Users</h2>
-            <p class="stat-value" th:text="${userCount}">0</p>
-            <p class="muted">Accounts in your organisation</p>
+            <h2>Completed</h2>
+            <p class="stat-value" th:text="${byStatus['COMPLETED'] + byStatus['COMPLETED_WITH_ERRORS']}">0</p>
+            <p class="muted"><span th:text="${byStatus['COMPLETED_WITH_ERRORS']}">0</span> with data errors</p>
         </article>
+        <article class="card stat">
+            <h2>Failed</h2>
+            <p class="stat-value" th:text="${byStatus['FAILED']}">0</p>
+            <p class="muted">Could not be processed</p>
+        </article>
+        <article class="card stat">
+            <h2>In progress</h2>
+            <p class="stat-value" th:text="${byStatus['QUEUED'] + byStatus['PROCESSING']}">0</p>
+            <p class="muted">Queued or processing</p>
+        </article>
+    </section>
+
+    <section class="card">
+        <h2>Recent jobs</h2>
+        <p class="muted" th:if="${#lists.isEmpty(recentJobs)}">
+            No jobs yet. <a th:href="@{/upload}">Upload your first dataset</a> to get started.
+        </p>
+        <table class="table" th:unless="${#lists.isEmpty(recentJobs)}">
+            <thead><tr><th scope="col">Job</th><th scope="col">File</th><th scope="col">Status</th><th scope="col">Submitted</th></tr></thead>
+            <tbody>
+            <tr th:each="j : ${recentJobs}">
+                <td><a th:href="@{/jobs/{id}(id=${j.id})}" th:text="'#' + ${j.id}">#1</a></td>
+                <td th:text="${j.fileName}">file.csv</td>
+                <td><span class="status" th:classappend="'status-' + ${j.status}" th:text="${j.status}">QUEUED</span></td>
+                <td th:text="${#temporals.format(j.submittedAt, 'dd MMM yyyy HH:mm')}">-</td>
+            </tr>
+            </tbody>
+        </table>
     </section>
 
     <section class="card">
@@ -44,6 +65,7 @@
             <dt>Username</dt><dd th:text="${user.username}">-</dd>
             <dt>Role</dt><dd th:text="${user.role}">-</dd>
             <dt>Tenant</dt><dd th:text="${user.tenantName + ' (' + user.tenantCode + ')'}">-</dd>
+            <dt>Users in tenant</dt><dd th:text="${userCount}">-</dd>
         </dl>
     </section>
 </main>

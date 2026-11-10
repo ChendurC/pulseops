@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Shared top bar. Usage: th:replace="~{fragments/topbar :: topbar('jobs')}" -->
+<header class="topbar" th:fragment="topbar(active)">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">◆</span> PulseOps</div>
+    <nav class="nav" aria-label="Main">
+        <a th:href="@{/}" th:classappend="${active == 'overview'} ? 'active'"
+           th:attr="aria-current=${active == 'overview'} ? 'page'">Overview</a>
+        <a th:href="@{/upload}" th:classappend="${active == 'upload'} ? 'active'"
+           th:attr="aria-current=${active == 'upload'} ? 'page'">Upload</a>
+        <a th:href="@{/jobs}" th:classappend="${active == 'jobs'} ? 'active'"
+           th:attr="aria-current=${active == 'jobs'} ? 'page'">Processing jobs</a>
+    </nav>
+    <div class="session" th:if="${user != null}">
+        <span class="session-user" th:text="${user.username}">user</span>
+        <span class="badge" th:text="${user.role}">ROLE</span>
+        <form th:action="@{/logout}" method="post">
+            <button type="submit" class="btn btn-ghost">Sign out</button>
+        </form>
+    </div>
+</header>
+</body>
+</html>

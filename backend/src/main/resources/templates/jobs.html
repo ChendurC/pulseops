@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Processing jobs · PulseOps</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header th:replace="~{fragments/topbar :: topbar('jobs')}"></header>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Processing jobs</h1>
+            <p class="muted"><span th:text="${total}">0</span> job(s) for <span th:text="${user.tenantName}">tenant</span></p>
+        </div>
+        <a th:href="@{/upload}" class="btn btn-primary btn-inline">Upload dataset</a>
+    </div>
+
+    <section class="card">
+        <p class="muted" th:if="${#lists.isEmpty(jobs)}">
+            No jobs yet. <a th:href="@{/upload}">Upload a dataset</a> to create one.
+        </p>
+        <table class="table" th:unless="${#lists.isEmpty(jobs)}">
+            <thead>
+            <tr>
+                <th scope="col">Job</th><th scope="col">File</th><th scope="col">Status</th>
+                <th scope="col" class="num">Rows</th><th scope="col" class="num">Valid</th>
+                <th scope="col" class="num">Invalid</th><th scope="col">Submitted</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="j : ${jobs}">
+                <td><a th:href="@{/jobs/{id}(id=${j.id})}" th:text="'#' + ${j.id}">#1</a></td>
+                <td th:text="${j.fileName}">file.csv</td>
+                <td><span class="status" th:classappend="'status-' + ${j.status}" th:text="${j.status}">QUEUED</span></td>
+                <td class="num" th:text="${j.totalRecords} ?: '–'">–</td>
+                <td class="num" th:text="${j.validRecords} ?: '–'">–</td>
+                <td class="num" th:text="${j.invalidRecords} ?: '–'">–</td>
+                <td th:text="${#temporals.format(j.submittedAt, 'dd MMM yyyy HH:mm:ss')}">-</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <nav class="pager" aria-label="Pagination" th:if="${totalPages > 1}">
+            <a th:if="${page > 0}" th:href="@{/jobs(page=${page - 1})}">← Newer</a>
+            <span th:text="'Page ' + ${page + 1} + ' of ' + ${totalPages}">Page 1 of 1</span>
+            <a th:if="${page + 1 < totalPages}" th:href="@{/jobs(page=${page + 1})}">Older →</a>
+        </nav>
+    </section>
+</main>
+</body>
+</html>

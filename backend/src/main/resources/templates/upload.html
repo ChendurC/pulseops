@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Upload dataset · PulseOps</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header th:replace="~{fragments/topbar :: topbar('upload')}"></header>
+
+<main class="container narrow">
+    <h1>Upload dataset</h1>
+    <p class="muted">CSV, UTF-8, maximum 5 MB. The file is validated in the background.</p>
+
+    <div class="alert alert-error" th:if="${error}" th:text="${error}" role="alert">Error</div>
+
+    <section class="card">
+        <form th:action="@{/upload}" method="post" enctype="multipart/form-data" class="form">
+            <label for="file">CSV file</label>
+            <input id="file" name="file" type="file" accept=".csv,text/csv" required>
+            <button type="submit" class="btn btn-primary">Upload and process</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Required columns</h2>
+        <table class="table">
+            <thead><tr><th scope="col">Column</th><th scope="col">Rule</th><th scope="col">Example</th></tr></thead>
+            <tbody>
+            <tr><td><code>transaction_id</code></td><td>Unique, letters/digits/_/-</td><td>TXN-1001</td></tr>
+            <tr><td><code>transaction_date</code></td><td>YYYY-MM-DD, not in the future</td><td>2026-10-01</td></tr>
+            <tr><td><code>product_code</code></td><td>Up to 50 characters</td><td>P-100</td></tr>
+            <tr><td><code>quantity</code></td><td>Whole number above 0</td><td>3</td></tr>
+            <tr><td><code>unit_price</code></td><td>0 or more, max 2 decimals</td><td>19.99</td></tr>
+            <tr><td><code>country</code></td><td>2-letter code</td><td>GB</td></tr>
+            </tbody>
+        </table>
+    </section>
+</main>
+</body>
+</html>

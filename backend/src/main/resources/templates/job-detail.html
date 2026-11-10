@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- While the job is still running, the page refreshes itself every 3 seconds (no JavaScript). -->
+    <meta http-equiv="refresh" content="3" th:if="${job.inProgress}">
+    <title th:text="'Job #' + ${job.id} + ' · PulseOps'">Job · PulseOps</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header th:replace="~{fragments/topbar :: topbar('jobs')}"></header>
+
+<main class="container">
+    <p><a th:href="@{/jobs}">← All jobs</a></p>
+
+    <div class="alert alert-success" th:if="${success}" th:text="${success}" role="status">OK</div>
+
+    <div class="page-head">
+        <div>
+            <h1 th:text="'Job #' + ${job.id}">Job #1</h1>
+            <p class="muted" th:text="${job.fileName}">file.csv</p>
+        </div>
+        <span class="status status-lg" th:classappend="'status-' + ${job.status}" th:text="${job.status}">QUEUED</span>
+    </div>
+
+    <div class="alert alert-info" th:if="${job.inProgress}" role="status">
+        Waiting for the processing worker… this page refreshes automatically.
+    </div>
+    <div class="alert alert-error" th:if="${job.status == 'FAILED'}" role="alert">
+        <strong th:text="${job.errorCategory}">CATEGORY</strong>:
+        <span th:text="${job.errorMessage}">message</span>
+    </div>
+
+    <section class="grid">
+        <article class="card stat"><h2>Rows</h2><p class="stat-value" th:text="${job.totalRecords} ?: '–'">–</p></article>
+        <article class="card stat"><h2>Valid</h2><p class="stat-value" th:text="${job.validRecords} ?: '–'">–</p></article>
+        <article class="card stat"><h2>Invalid</h2><p class="stat-value" th:text="${job.invalidRecords} ?: '–'">–</p></article>
+        <article class="card stat"><h2>Attempts</h2><p class="stat-value" th:text="${job.attemptCount} + ' / ' + ${job.maxAttempts}">0 / 3</p></article>
+    </section>
+
+    <section class="card">
+        <h2>Lifecycle</h2>
+        <dl class="kv">
+            <dt>Correlation ID</dt><dd><code th:text="${job.correlationId}">uuid</code></dd>
+            <dt>Submitted</dt><dd th:text="${#temporals.format(job.submittedAt, 'dd MMM yyyy HH:mm:ss')}">-</dd>
+            <dt>Started</dt><dd th:text="${job.startedAt} ? ${#temporals.format(job.startedAt, 'dd MMM yyyy HH:mm:ss')} : '–'">–</dd>
+            <dt>Finished</dt><dd th:text="${job.finishedAt} ? ${#temporals.format(job.finishedAt, 'dd MMM yyyy HH:mm:ss')} : '–'">–</dd>
+            <dt>Error category</dt><dd th:text="${job.errorCategory} ?: '–'">–</dd>
+        </dl>
+    </section>
+
+    <section class="card" th:if="${report != null}">
+        <div class="page-head">
+            <h2>Report</h2>
+            <a th:href="@{/jobs/{id}/report.csv(id=${job.id})}" class="btn btn-secondary">Download CSV report</a>
+        </div>
+        <section class="grid">
+            <article class="stat"><h2>Transactions</h2><p class="stat-value" th:text="${report.transactionCount}">0</p></article>
+            <article class="stat"><h2>Units sold</h2><p class="stat-value" th:text="${report.totalUnits}">0</p></article>
+            <article class="stat"><h2>Sales value</h2><p class="stat-value" th:text="${#numbers.formatDecimal(report.totalSales, 1, 'COMMA', 2, 'POINT')}">0.00</p></article>
+        </section>
+
+        <div class="two-col">
+            <div>
+                <h3>By product</h3>
+                <table class="table">
+                    <thead><tr><th scope="col">Product</th><th scope="col" class="num">Units</th><th scope="col" class="num">Sales</th></tr></thead>
+                    <tbody><tr th:each="g : ${report.byProduct}">
+                        <td th:text="${g.key}">P</td><td class="num" th:text="${g.units}">0</td>
+                        <td class="num" th:text="${#numbers.formatDecimal(g.sales, 1, 'COMMA', 2, 'POINT')}">0</td>
+                    </tr></tbody>
+                </table>
+            </div>
+            <div>
+                <h3>By country</h3>
+                <table class="table">
+                    <thead><tr><th scope="col">Country</th><th scope="col" class="num">Units</th><th scope="col" class="num">Sales</th></tr></thead>
+                    <tbody><tr th:each="g : ${report.byCountry}">
+                        <td th:text="${g.key}">GB</td><td class="num" th:text="${g.units}">0</td>
+                        <td class="num" th:text="${#numbers.formatDecimal(g.sales, 1, 'COMMA', 2, 'POINT')}">0</td>
+                    </tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <h3>Daily totals</h3>
+        <table class="table">
+            <thead><tr><th scope="col">Date</th><th scope="col" class="num">Transactions</th><th scope="col" class="num">Units</th><th scope="col" class="num">Sales</th></tr></thead>
+            <tbody><tr th:each="d : ${report.byDay}">
+                <td th:text="${d.day}">2026-10-01</td><td class="num" th:text="${d.transactions}">0</td>
+                <td class="num" th:text="${d.units}">0</td>
+                <td class="num" th:text="${#numbers.formatDecimal(d.sales, 1, 'COMMA', 2, 'POINT')}">0</td>
+            </tr></tbody>
+        </table>
+    </section>
+
+    <section class="card" th:unless="${#lists.isEmpty(errors)}">
+        <h2>Validation issues <span class="muted" th:text="'(showing up to 200)'"></span></h2>
+        <table class="table">
+            <thead><tr><th scope="col">Line</th><th scope="col">Column</th><th scope="col">Code</th><th scope="col">Message</th><th scope="col">Value</th></tr></thead>
+            <tbody><tr th:each="e : ${errors}">
+                <td th:text="${e.lineNumber} ?: 'file'">2</td>
+                <td th:text="${e.columnName} ?: '–'">col</td>
+                <td><code th:text="${e.errorCode}">CODE</code></td>
+                <td th:text="${e.message}">message</td>
+                <td><code th:text="${e.rawValue} ?: ''"></code></td>
+            </tr></tbody>
+        </table>
+    </section>
+</main>
+</body>
+</html>
