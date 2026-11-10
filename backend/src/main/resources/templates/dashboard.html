@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Overview · PulseOps</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">◆</span> PulseOps</div>
+    <nav class="nav" aria-label="Main">
+        <a th:href="@{/}" class="active" aria-current="page">Overview</a>
+    </nav>
+    <div class="session">
+        <span class="session-user" th:text="${user.username}">user</span>
+        <span class="badge" th:text="${user.role}">ROLE</span>
+        <form th:action="@{/logout}" method="post">
+            <button type="submit" class="btn btn-ghost">Sign out</button>
+        </form>
+    </div>
+</header>
+
+<main class="container">
+    <h1>Overview</h1>
+    <p class="muted" th:text="${user.tenantName}">Tenant</p>
+
+    <section class="grid">
+        <article class="card stat">
+            <h2>Processing jobs</h2>
+            <p class="stat-value" th:text="${jobCount}">0</p>
+            <p class="muted">Jobs submitted by your organisation</p>
+        </article>
+        <article class="card stat">
+            <h2>Users</h2>
+            <p class="stat-value" th:text="${userCount}">0</p>
+            <p class="muted">Accounts in your organisation</p>
+        </article>
+    </section>
+
+    <section class="card">
+        <h2>Your session</h2>
+        <dl class="kv">
+            <dt>Username</dt><dd th:text="${user.username}">-</dd>
+            <dt>Role</dt><dd th:text="${user.role}">-</dd>
+            <dt>Tenant</dt><dd th:text="${user.tenantName + ' (' + user.tenantCode + ')'}">-</dd>
+        </dl>
+    </section>
+</main>
+</body>
+</html>
