@@ -9,7 +9,7 @@ import psycopg
 
 from .validation import RowError, ValidationResult
 
-LEASE_SECONDS = 300
+DEFAULT_LEASE_SECONDS = 300
 
 
 @dataclass(frozen=True)
@@ -46,9 +46,11 @@ RETURNING j.id, j.tenant_id, j.correlation_id, j.attempt_count, j.max_attempts,
 """
 
 
-def claim_next_job(conn: psycopg.Connection, worker_id: str) -> ClaimedJob | None:
+def claim_next_job(
+    conn: psycopg.Connection, worker_id: str, lease_seconds: int = DEFAULT_LEASE_SECONDS
+) -> ClaimedJob | None:
     with conn.transaction():
-        row = conn.execute(CLAIM_SQL, {"lease": LEASE_SECONDS, "worker_id": worker_id}).fetchone()
+        row = conn.execute(CLAIM_SQL, {"lease": lease_seconds, "worker_id": worker_id}).fetchone()
     return ClaimedJob(*row) if row else None
 
 
@@ -212,3 +214,55 @@ def record_unexpected_failure(
             message=message[:1000],
         )
         return "FAILED"
+
+
+# A job whose lease ran out was abandoned by a worker that crashed, was killed or froze.
+# Put it back in the queue (or fail it if it has used all its attempts).
+# SET expressions read the OLD row values, so the message can name the dead worker.
+RECOVER_SQL = """
+UPDATE processing_jobs
+   SET status           = CASE WHEN attempt_count < max_attempts THEN 'QUEUED' ELSE 'FAILED' END,
+       finished_at      = CASE WHEN attempt_count < max_attempts THEN NULL ELSE now() END,
+       available_at     = now(),
+       error_category   = 'LEASE_EXPIRED',
+       error_message    = 'Worker ' || coalesce(worker_id, '?')
+                          || ' stopped responding before finishing; lease expired',
+       worker_id        = NULL,
+       lease_expires_at = NULL
+ WHERE status = 'PROCESSING' AND lease_expires_at < now()
+RETURNING id, tenant_id, correlation_id, status, error_message
+"""
+
+
+@dataclass(frozen=True)
+class RecoveredJob:
+    id: int
+    tenant_id: int
+    correlation_id: UUID
+    new_status: str
+    message: str
+
+
+def recover_expired_leases(conn: psycopg.Connection) -> list[RecoveredJob]:
+    """Re-queue or fail abandoned jobs and write a SYSTEM audit entry for each."""
+    with conn.transaction(), conn.cursor() as cur:
+        rows = [RecoveredJob(*r) for r in cur.execute(RECOVER_SQL).fetchall()]
+        if rows:
+            cur.executemany(
+                """INSERT INTO audit_logs (tenant_id, actor_type, action, entity_type, entity_id,
+                                           correlation_id, details)
+                   VALUES (%s, 'SYSTEM', %s, 'JOB', %s, %s, %s)""",
+                [
+                    (
+                        r.tenant_id,
+                        "LEASE_EXPIRED_REQUEUED"
+                        if r.new_status == "QUEUED"
+                        else "LEASE_EXPIRED_FAILED",
+                        r.id,
+                        r.correlation_id,
+                        r.message[:1000],
+                    )
+                    for r in rows
+                ],
+            )
+    return rows

@@ -1,0 +1,4 @@
+transaction_id,transaction_date,product_code,quantity,unit_price,country
+MER-3001,2026-10-09,P-100,2,19.99,GB
+MER-3002,2026-10-09,P-200,1,249.00,IN
+MER-3003,2026-10-10,P-300,3,74.50,SA

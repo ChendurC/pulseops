@@ -1,5 +1,7 @@
 package com.pulseops.ingestion;
 
+import com.pulseops.audit.AuditService;
+import com.pulseops.observability.CorrelationIdFilter;
 import com.pulseops.security.PulseOpsUser;
 import com.pulseops.storage.FileStorage;
 import org.slf4j.Logger;
@@ -26,10 +28,12 @@ public class IngestionService {
 
     private final JdbcTemplate jdbc;
     private final FileStorage storage;
+    private final AuditService audit;
 
-    public IngestionService(JdbcTemplate jdbc, FileStorage storage) {
+    public IngestionService(JdbcTemplate jdbc, FileStorage storage, AuditService audit) {
         this.jdbc = jdbc;
         this.storage = storage;
+        this.audit = audit;
     }
 
     public record QueuedJob(long jobId, UUID correlationId) { }
@@ -58,7 +62,8 @@ public class IngestionService {
         }
 
         String key = storage.save(user.getTenantId(), content);
-        UUID correlationId = UUID.randomUUID();
+        // Same ID as the HTTP request, so one search finds the upload AND the worker's processing.
+        UUID correlationId = CorrelationIdFilter.currentOrNew();
 
         // Tenant id always comes from the authenticated user, never from the request.
         Long ingestionId = jdbc.queryForObject("""
@@ -76,6 +81,8 @@ public class IngestionService {
                 RETURNING id""",
                 Long.class, user.getTenantId(), ingestionId, correlationId);
 
+        audit.recordUserAction(user, "UPLOAD_ACCEPTED", "JOB", jobId, correlationId,
+                originalName + " (" + content.length + " bytes)");
         log.info("ingestion accepted job_id={} tenant_id={} correlation_id={} bytes={}",
                 jobId, user.getTenantId(), correlationId, content.length);
         return new QueuedJob(jobId, correlationId);

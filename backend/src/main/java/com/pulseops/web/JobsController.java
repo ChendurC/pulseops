@@ -1,6 +1,7 @@
 package com.pulseops.web;
 
 import com.pulseops.jobs.CsvReportWriter;
+import com.pulseops.jobs.JobCommandService;
 import com.pulseops.jobs.JobQueryService;
 import com.pulseops.jobs.JobView;
 import com.pulseops.jobs.ReportData;
@@ -15,17 +16,21 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 public class JobsController {
 
     private static final int PAGE_SIZE = 20;
     private final JobQueryService jobs;
+    private final JobCommandService commands;
 
-    public JobsController(JobQueryService jobs) {
+    public JobsController(JobQueryService jobs, JobCommandService commands) {
         this.jobs = jobs;
+        this.commands = commands;
     }
 
     @GetMapping("/jobs")
@@ -47,6 +52,7 @@ public class JobsController {
         JobView job = findOr404(user, id);
         model.addAttribute("job", job);
         model.addAttribute("errors", jobs.findErrors(user.getTenantId(), id, 200));
+        model.addAttribute("activity", jobs.findActivity(user.getTenantId(), id));
         if (job.hasReport()) {
             model.addAttribute("report", jobs.buildReport(user.getTenantId(), job));
         }
@@ -66,6 +72,20 @@ public class JobsController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename("pulseops-job-" + id + "-report.csv").build().toString())
                 .body(CsvReportWriter.write(id, report));
+    }
+
+    @PostMapping("/jobs/{id}/retry")
+    public String retry(@AuthenticationPrincipal PulseOpsUser user, @PathVariable long id,
+                        RedirectAttributes redirect) {
+        switch (commands.retry(user, id)) {
+            case NOT_FOUND -> throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            case NOT_RETRYABLE -> redirect.addFlashAttribute("error",
+                    "This job cannot be retried. Only failed jobs with a recoverable error "
+                            + "(not a data error) can be retried.");
+            case QUEUED -> redirect.addFlashAttribute("success",
+                    "Retry requested. The job is back in the queue.");
+        }
+        return "redirect:/jobs/" + id;
     }
 
     /** Another tenant's job gives 404, not 403: we don't even reveal that it exists. */

@@ -59,4 +59,9 @@ public class PulseOpsUser implements UserDetails, CredentialsContainer {
     public String getTenantCode() { return tenantCode; }
     public String getTenantName() { return tenantName; }
     public Role getRole() { return role; }
+
+    /** Used by the job page to show the Retry button, and re-checked in the service. */
+    public boolean isRetryAllowed() {
+        return role == Role.TENANT_ADMIN || role == Role.SUPPORT_ENGINEER;
+    }
 }

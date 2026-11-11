@@ -106,3 +106,8 @@ a { color: var(--blue-600); }
 .pager { display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; font-size: .9rem; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } .page-head { flex-direction: column; } }
+
+/* ---- Day 3 additions ---- */
+.hint-line { margin: .5rem 0 0; font-size: .85rem; }
+.inline-form { margin: .75rem 0 0; }
+.alert .btn-secondary { padding: .4rem .9rem; }

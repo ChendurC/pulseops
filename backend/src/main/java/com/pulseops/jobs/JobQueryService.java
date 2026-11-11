@@ -24,7 +24,7 @@ public class JobQueryService {
     private static final String JOB_COLUMNS = """
             j.id, i.original_filename, j.status, j.total_records, j.valid_records,
             j.invalid_records, j.error_category, j.error_message, j.attempt_count,
-            j.max_attempts, j.correlation_id, j.submitted_at, j.started_at, j.finished_at
+            j.max_attempts, j.manual_retry_count, j.correlation_id, j.submitted_at, j.started_at, j.finished_at
             """;
 
     private static final RowMapper<JobView> JOB_MAPPER = (rs, n) -> new JobView(
@@ -38,6 +38,7 @@ public class JobQueryService {
             rs.getString("error_message"),
             rs.getInt("attempt_count"),
             rs.getInt("max_attempts"),
+            rs.getInt("manual_retry_count"),
             rs.getObject("correlation_id", UUID.class),
             rs.getObject("submitted_at", OffsetDateTime.class),
             rs.getObject("started_at", OffsetDateTime.class),
@@ -85,6 +86,26 @@ public class JobQueryService {
                         rs.getString("message"),
                         rs.getString("raw_value")),
                 tenantId, jobId, limit);
+    }
+
+    /**
+     * The job's audit history. LEFT JOIN (not INNER JOIN) because SYSTEM actions,
+     * such as the worker recovering a job, have no user: an INNER JOIN would hide them.
+     */
+    public List<ActivityView> findActivity(long tenantId, long jobId) {
+        return jdbc.query("""
+                SELECT a.created_at, a.action, a.actor_type, u.username, a.details
+                FROM audit_logs a
+                LEFT JOIN users u ON u.id = a.actor_user_id
+                WHERE a.tenant_id = ? AND a.entity_type = 'JOB' AND a.entity_id = ?
+                ORDER BY a.created_at, a.id""",
+                (rs, n) -> new ActivityView(
+                        rs.getObject("created_at", OffsetDateTime.class),
+                        rs.getString("action"),
+                        rs.getString("actor_type"),
+                        rs.getString("username"),
+                        rs.getString("details")),
+                tenantId, jobId);
     }
 
     public ReportData buildReport(long tenantId, JobView job) {

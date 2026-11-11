@@ -15,6 +15,7 @@
     <p><a th:href="@{/jobs}">← All jobs</a></p>
 
     <div class="alert alert-success" th:if="${success}" th:text="${success}" role="status">OK</div>
+    <div class="alert alert-error" th:if="${error}" th:text="${error}" role="alert">Error</div>
 
     <div class="page-head">
         <div>
@@ -30,6 +31,23 @@
     <div class="alert alert-error" th:if="${job.status == 'FAILED'}" role="alert">
         <strong th:text="${job.errorCategory}">CATEGORY</strong>:
         <span th:text="${job.errorMessage}">message</span>
+        <p class="hint-line" th:if="${job.retryable}">
+            Recoverable failure (infrastructure). The same file can be processed again.
+        </p>
+        <p class="hint-line" th:unless="${job.retryable}">
+            Permanent data error. Retrying would fail the same way: upload a corrected file.
+        </p>
+        <form th:if="${job.retryable and user.retryAllowed}" th:action="@{/jobs/{id}/retry(id=${job.id})}"
+              method="post" class="inline-form">
+            <button type="submit" class="btn btn-secondary">Retry job</button>
+        </form>
+        <p class="hint-line" th:if="${job.retryable and !user.retryAllowed}">
+            Only a tenant admin or support engineer can retry this job.
+        </p>
+    </div>
+    <div class="alert alert-info" th:if="${job.inProgress and job.errorCategory != null}" role="status">
+        Previous attempt problem: <strong th:text="${job.errorCategory}">CAT</strong>
+        – <span th:text="${job.errorMessage}">msg</span>
     </div>
 
     <section class="grid">
@@ -47,6 +65,7 @@
             <dt>Started</dt><dd th:text="${job.startedAt} ? ${#temporals.format(job.startedAt, 'dd MMM yyyy HH:mm:ss')} : '–'">–</dd>
             <dt>Finished</dt><dd th:text="${job.finishedAt} ? ${#temporals.format(job.finishedAt, 'dd MMM yyyy HH:mm:ss')} : '–'">–</dd>
             <dt>Error category</dt><dd th:text="${job.errorCategory} ?: '–'">–</dd>
+            <dt>Manual retries</dt><dd th:text="${job.manualRetryCount}">0</dd>
         </dl>
     </section>
 
@@ -61,7 +80,8 @@
             <article class="stat"><h2>Sales value</h2><p class="stat-value" th:text="${#numbers.formatDecimal(report.totalSales, 1, 'COMMA', 2, 'POINT')}">0.00</p></article>
         </section>
 
-        <div class="two-col">
+        <p class="muted" th:if="${report.transactionCount == 0}">No valid rows were stored for this job, so there is nothing to break down.</p>
+        <div class="two-col" th:if="${report.transactionCount > 0}">
             <div>
                 <h3>By product</h3>
                 <table class="table">
@@ -84,13 +104,27 @@
             </div>
         </div>
 
-        <h3>Daily totals</h3>
-        <table class="table">
+        <h3 th:if="${report.transactionCount > 0}">Daily totals</h3>
+        <table class="table" th:if="${report.transactionCount > 0}">
             <thead><tr><th scope="col">Date</th><th scope="col" class="num">Transactions</th><th scope="col" class="num">Units</th><th scope="col" class="num">Sales</th></tr></thead>
             <tbody><tr th:each="d : ${report.byDay}">
                 <td th:text="${d.day}">2026-10-01</td><td class="num" th:text="${d.transactions}">0</td>
                 <td class="num" th:text="${d.units}">0</td>
                 <td class="num" th:text="${#numbers.formatDecimal(d.sales, 1, 'COMMA', 2, 'POINT')}">0</td>
+            </tr></tbody>
+        </table>
+    </section>
+
+    <section class="card">
+        <h2>Activity</h2>
+        <p class="muted" th:if="${#lists.isEmpty(activity)}">No recorded activity.</p>
+        <table class="table" th:unless="${#lists.isEmpty(activity)}">
+            <thead><tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">By</th><th scope="col">Details</th></tr></thead>
+            <tbody><tr th:each="a : ${activity}">
+                <td th:text="${#temporals.format(a.at, 'dd MMM yyyy HH:mm:ss')}">-</td>
+                <td><code th:text="${a.action}">ACTION</code></td>
+                <td th:text="${a.actor} ?: 'system (worker)'">user</td>
+                <td th:text="${a.details} ?: ''"></td>
             </tr></tbody>
         </table>
     </section>
